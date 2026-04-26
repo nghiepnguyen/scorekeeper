@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://scorekeeper-app.web.app/sitemap.xml
+Sitemap: https://gs.thanhnghiep.top/sitemap.xml
