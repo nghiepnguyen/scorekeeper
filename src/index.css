@@ -199,6 +199,13 @@ h2 {
   padding: 4px 10px;
 }
 
+.form-error {
+  margin-top: 4px;
+  color: #ff9aa8;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
 .winner-notice {
   margin-bottom: 12px;
   border: 1px solid rgba(255, 220, 120, 0.34);
@@ -396,6 +403,12 @@ textarea:focus {
   border-color: rgba(136, 149, 255, 0.24);
 }
 
+.button.secondary {
+  background: rgba(41, 49, 95, 0.75);
+  color: var(--theme_text-primary);
+  border-color: rgba(136, 149, 255, 0.24);
+}
+
 .button.success {
   background: linear-gradient(135deg, #11b95a, #33ff96);
   color: #ffffff;
@@ -415,6 +428,10 @@ textarea:focus {
 }
 
 .button.ghost:hover {
+  background: #25346a;
+}
+
+.button.secondary:hover {
   background: #25346a;
 }
 

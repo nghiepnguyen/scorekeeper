@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useGameStore } from './store/gameStore'
 
@@ -23,6 +23,9 @@ const copy = {
     winningScorePlaceholder: 'Ví dụ: 100',
     players: 'Người chơi',
     playerPlaceholder: (index: number) => `Người chơi ${index + 1}`,
+    duplicateNameError: 'Tên người chơi không được trùng nhau.',
+    emptyNameError: 'Vui lòng nhập tên cho tất cả người chơi.',
+    minPlayersError: 'Cần ít nhất 2 người chơi.',
     addPlayer: '+ Thêm người',
     removePlayer: '- Bớt người',
     startGame: 'Bắt đầu phòng chơi',
@@ -67,6 +70,9 @@ const copy = {
     winningScorePlaceholder: 'Example: 100',
     players: 'Players',
     playerPlaceholder: (index: number) => `Player ${index + 1}`,
+    duplicateNameError: 'Player names must be unique.',
+    emptyNameError: 'Please enter all player names.',
+    minPlayersError: 'At least 2 players are required.',
     addPlayer: '+ Add player',
     removePlayer: '- Remove player',
     startGame: 'Start game room',
@@ -126,7 +132,10 @@ function App() {
   const [autoEndedByWinningScore, setAutoEndedByWinningScore] = useState(false)
   const [language, setLanguage] = useState<Language>('vi')
   const [showConfetti, setShowConfetti] = useState(false)
+  const [setupError, setSetupError] = useState('')
   const confettiTimerRef = useRef<number | null>(null)
+  const playerInputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const shouldFocusNewPlayerRef = useRef(false)
   const t = copy[language]
 
   const sortedPlayers = useMemo(
@@ -259,10 +268,21 @@ function App() {
   const handleStartGame = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const cleanedNames = playerNames.map((name) => name.trim()).filter(Boolean)
-    if (cleanedNames.length < 2 || cleanedNames.length > 8) {
+    const trimmedNames = playerNames.map((name) => name.trim())
+    if (trimmedNames.length < 2) {
+      setSetupError(t.minPlayersError)
       return
     }
+    if (trimmedNames.some((name) => name.length === 0)) {
+      setSetupError(t.emptyNameError)
+      return
+    }
+    const normalizedNames = trimmedNames.map((name) => name.toLocaleLowerCase())
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      setSetupError(t.duplicateNameError)
+      return
+    }
+    const cleanedNames = trimmedNames
 
     const initial = Number(startingScore)
     if (!Number.isFinite(initial)) {
@@ -280,6 +300,7 @@ function App() {
     }
 
     startGame(cleanedNames, initial)
+    setSetupError('')
     setGameEnded(false)
     setAutoEndedByWinningScore(false)
     setCopyStatus('')
@@ -353,19 +374,36 @@ function App() {
     if (playerNames.length >= 8) {
       return
     }
+    shouldFocusNewPlayerRef.current = true
     setPlayerNames((prev) => [...prev, ''])
+    setSetupError('')
   }
 
   const removePlayerField = () => {
     if (playerNames.length <= 2) {
+      setSetupError(t.minPlayersError)
       return
     }
     setPlayerNames((prev) => prev.slice(0, -1))
+    setSetupError('')
   }
 
   const updatePlayerName = (index: number, value: string) => {
     setPlayerNames((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)))
+    if (setupError) {
+      setSetupError('')
+    }
   }
+
+  useEffect(() => {
+    if (!shouldFocusNewPlayerRef.current) {
+      return
+    }
+    const lastIndex = playerNames.length - 1
+    const targetInput = playerInputRefs.current[lastIndex]
+    targetInput?.focus()
+    shouldFocusNewPlayerRef.current = false
+  }, [playerNames.length])
 
   const handleResetGame = () => {
     setGameEnded(false)
@@ -451,6 +489,9 @@ function App() {
                   type="text"
                   placeholder={t.playerPlaceholder(index)}
                   value={name}
+                  ref={(element) => {
+                    playerInputRefs.current[index] = element
+                  }}
                   onChange={(event) => updatePlayerName(index, event.target.value)}
                 />
               ))}
@@ -462,6 +503,7 @@ function App() {
                   {t.removePlayer}
                 </button>
               </div>
+              {setupError ? <p className="form-error">{setupError}</p> : null}
             </div>
 
             <button type="submit" className="button primary">
@@ -490,9 +532,14 @@ function App() {
             ) : null}
           </div>
           <div className="title-row">
-            <button type="button" className="button ghost" onClick={() => setGameEnded(false)}>
-              {t.backToMatch}
-            </button>
+            <div className="inline-actions">
+              <button type="button" className="button secondary" onClick={() => setGameEnded(false)}>
+                {t.backToMatch}
+              </button>
+              <button type="button" className="button primary" onClick={handleResetGame}>
+                {t.newRoom}
+              </button>
+            </div>
           </div>
 
           {sortedPlayers[0] ? (
@@ -541,9 +588,6 @@ function App() {
           <div className="inline-actions">
             <button type="button" className="button primary" onClick={handleCopyResult}>
               {t.copyResult}
-            </button>
-            <button type="button" className="button ghost" onClick={handleResetGame}>
-              {t.newRoom}
             </button>
           </div>
           {copyStatus ? <p className="subtle">{copyStatus}</p> : null}
