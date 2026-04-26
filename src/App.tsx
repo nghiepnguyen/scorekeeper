@@ -12,6 +12,7 @@ type PlayerStats = {
 }
 
 type Language = 'vi' | 'en'
+const PREVIEW_EMOJIS = ['🐯', '🦊', '🐼', '🐸', '🦁', '🐨', '🐵', '🐙', '🦄', '🐧', '🐻', '🐺']
 
 const copy = {
   vi: {
@@ -484,16 +485,18 @@ function App() {
             <div className="stack">
               <span>{t.players} ({playerNames.length}/8)</span>
               {playerNames.map((name, index) => (
-                <input
-                  key={index}
-                  type="text"
-                  placeholder={t.playerPlaceholder(index)}
-                  value={name}
-                  ref={(element) => {
-                    playerInputRefs.current[index] = element
-                  }}
-                  onChange={(event) => updatePlayerName(index, event.target.value)}
-                />
+                <div key={index} className="player-name-row">
+                  <span className="player-emoji-badge">{PREVIEW_EMOJIS[index % PREVIEW_EMOJIS.length]}</span>
+                  <input
+                    type="text"
+                    placeholder={t.playerPlaceholder(index)}
+                    value={name}
+                    ref={(element) => {
+                      playerInputRefs.current[index] = element
+                    }}
+                    onChange={(event) => updatePlayerName(index, event.target.value)}
+                  />
+                </div>
               ))}
               <div className="inline-actions player-actions">
                 <button type="button" className="button success" onClick={addPlayerField}>
@@ -527,7 +530,12 @@ function App() {
             </h2>
             {autoEndedByWinningScore && winners.length > 0 ? (
               <p className="result-hero-winners">
-                {winners.map((player) => `${player.emoji} ${player.name}`).join(', ')}
+                {winners.map((player, index) => (
+                  <span key={player.id}>
+                    <span className="emoji-inline-badge">{player.emoji}</span> {player.name}
+                    {index < winners.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
               </p>
             ) : null}
           </div>
@@ -546,7 +554,8 @@ function App() {
             <article className="champion-card">
               <p className="micro-label">Champion</p>
               <h3 className="champion-name">
-                🏆 {sortedPlayers[0].emoji} {sortedPlayers[0].name}
+                🏆 <span className="emoji-inline-badge emoji-inline-badge-lg">{sortedPlayers[0].emoji}</span>{' '}
+                {sortedPlayers[0].name}
               </h3>
               <p className="champion-score">{sortedPlayers[0].score}</p>
             </article>
@@ -563,13 +572,16 @@ function App() {
               const lowest = Number.isFinite(stats.lowestRound) ? stats.lowestRound : 0
 
               return (
-                <li key={player.id} className="rank-row">
+                <li
+                  key={player.id}
+                  className={index === 0 ? 'rank-row leader top-one' : 'rank-row'}
+                >
                   <div className="stack compact">
                     <strong className="type-card-title rank-title-row">
                       <span className="rank-badge">{t.rankLabel(index)}</span>
                       <span>
                         {index === 0 ? '🏆 ' : ''}
-                        {player.emoji} {player.name}
+                        <span className="emoji-inline-badge">{player.emoji}</span> {player.name}
                       </span>
                     </strong>
                     <span className="subtle stat-chip">
@@ -612,7 +624,7 @@ function App() {
               {players.map((player) => (
                 <label key={player.id} className="field">
                   <span>
-                    {player.emoji} {player.name}
+                    <span className="emoji-inline-badge">{player.emoji}</span> {player.name}
                   </span>
                   <input
                     type="number"
@@ -674,10 +686,17 @@ function App() {
               {sortedPlayers.map((player, index) => (
                 <li
                   key={player.id}
-                  className={player.score === leaderScore ? 'rank-row leader' : 'rank-row'}
+                  className={
+                    index === 0
+                      ? 'rank-row leader top-one'
+                      : player.score === leaderScore
+                        ? 'rank-row leader'
+                        : 'rank-row'
+                  }
                 >
                   <span>
-                    {index === 0 ? '🏆 ' : ''}#{index + 1} {player.emoji} {player.name}
+                    {index === 0 ? '🏆 ' : ''}#{index + 1}{' '}
+                    <span className="emoji-inline-badge">{player.emoji}</span> {player.name}
                   </span>
                   <strong>{player.score}</strong>
                 </li>
