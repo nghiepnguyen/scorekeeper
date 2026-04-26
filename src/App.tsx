@@ -372,7 +372,7 @@ function App() {
   }
 
   const addPlayerField = () => {
-    if (playerNames.length >= 8) {
+    if (playerNames.length >= 16) {
       return
     }
     shouldFocusNewPlayerRef.current = true
@@ -483,7 +483,7 @@ function App() {
             </div>
 
             <div className="stack">
-              <span>{t.players} ({playerNames.length}/8)</span>
+              <span>{t.players} ({playerNames.length}/16)</span>
               {playerNames.map((name, index) => (
                 <div key={index} className="player-name-row">
                   <span className="player-emoji-badge">{PREVIEW_EMOJIS[index % PREVIEW_EMOJIS.length]}</span>
