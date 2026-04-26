@@ -695,9 +695,10 @@ textarea:focus {
   }
 
   .emoji-inline-badge {
-    width: 40px;
-    height: 40px;
-    font-size: 1.15rem;
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+    border-radius: 10px;
   }
 
   .button {
@@ -719,24 +720,59 @@ textarea:focus {
     width: 100%;
   }
 
-  .type-card-title,
-  .type-score-value {
-    font-size: 18px;
+  .ranking {
+    gap: 8px;
   }
 
   .rank-row {
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 10px;
     padding: 10px 12px;
   }
 
-  .rank-row.top-one {
-    padding: 14px 14px;
+  .rank-row > div {
+    min-width: 0;
   }
 
-  .rank-row > strong,
-  .rank-row .type-score-value {
-    align-self: flex-end;
+  .rank-row .type-card-title,
+  .rank-row > span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  .rank-row.top-one {
+    padding: 12px 14px;
+  }
+
+  .rank-row.top-one .type-card-title {
+    font-size: 1.08rem;
+  }
+
+  .rank-row .type-score-value,
+  .rank-row > strong:last-child {
+    font-size: 1.35rem;
+    line-height: 1;
+    align-self: center;
+  }
+
+  .rank-badge {
+    padding: 4px 8px;
+    font-size: 0.76rem;
+  }
+
+  .stat-chip {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 4px 9px;
+    font-size: 0.83rem;
+    line-height: 1.25;
   }
 
   .result-hero {
