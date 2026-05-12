@@ -137,7 +137,19 @@ function App() {
   const confettiTimerRef = useRef<number | null>(null)
   const playerInputRefs = useRef<Array<HTMLInputElement | null>>([])
   const shouldFocusNewPlayerRef = useRef(false)
+  const [transitionStage, setTransitionStage] = useState<'idle' | 'entering'>('idle')
+  const [updatedPlayerIds, setUpdatedPlayerIds] = useState<Set<string>>(new Set())
   const t = copy[language]
+
+  useEffect(() => {
+    if (gameStarted || gameEnded) {
+      requestAnimationFrame(() => {
+        setTransitionStage('entering')
+      })
+      const timer = setTimeout(() => setTransitionStage('idle'), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [gameStarted, gameEnded])
 
   const sortedPlayers = useMemo(
     () => [...players].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)),
@@ -318,6 +330,12 @@ function App() {
     const deltas = normalizeRoundInput()
     const nextScores = simulateScoresAfterAdd(deltas)
     addRound(deltas)
+    
+    // Trigger score pulse animation
+    const affectedIds = new Set(Object.keys(deltas).filter(id => deltas[id] !== 0))
+    setUpdatedPlayerIds(affectedIds)
+    setTimeout(() => setUpdatedPlayerIds(new Set()), 600)
+
     if (reachesWinningScore(nextScores)) {
       setAutoEndedByWinningScore(true)
       setGameEnded(true)
@@ -421,8 +439,8 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
-      <header className="panel app-header">
+    <main className={`app-shell ${transitionStage === 'entering' ? 'page-transition' : ''}`}>
+      <header className="app-header">
         <div className="header-main">
           <div>
             <p className="micro-label">ScoreKeeper</p>
@@ -574,7 +592,7 @@ function App() {
               return (
                 <li
                   key={player.id}
-                  className={index === 0 ? 'rank-row leader top-one' : 'rank-row'}
+                  className={`rank-row ${index === 0 ? 'top-one' : player.score === leaderScore ? 'leader' : ''}`}
                 >
                   <div className="stack compact">
                     <strong className="type-card-title rank-title-row">
@@ -686,19 +704,13 @@ function App() {
               {sortedPlayers.map((player, index) => (
                 <li
                   key={player.id}
-                  className={
-                    index === 0
-                      ? 'rank-row leader top-one'
-                      : player.score === leaderScore
-                        ? 'rank-row leader'
-                        : 'rank-row'
-                  }
+                  className={`rank-row ${index === 0 ? 'top-one' : player.score === leaderScore ? 'leader' : ''} ${updatedPlayerIds.has(player.id) ? 'score-updated' : ''}`}
                 >
                   <span>
                     {index === 0 ? '🏆 ' : ''}#{index + 1}{' '}
                     <span className="emoji-inline-badge">{player.emoji}</span> {player.name}
                   </span>
-                  <strong>{player.score}</strong>
+                  <strong className="type-score-value">{player.score}</strong>
                 </li>
               ))}
             </ul>

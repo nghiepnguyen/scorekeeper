@@ -1,0 +1,15 @@
+/Users/nghiepnguyen/My Files/Score game/eslint.config.js
+/Users/nghiepnguyen/My Files/Score game/vite.config.ts
+/Users/nghiepnguyen/My Files/Score game/src/App.tsx
+/Users/nghiepnguyen/My Files/Score game/src/main.tsx
+/Users/nghiepnguyen/My Files/Score game/src/store/gameStore.ts
+/Users/nghiepnguyen/My Files/Score game/index.html
+/Users/nghiepnguyen/My Files/Score game/SETUP.md
+/Users/nghiepnguyen/My Files/Score game/README.md
+/Users/nghiepnguyen/My Files/Score game/FEATURES.md
+/Users/nghiepnguyen/My Files/Score game/DESIGN.md
+/Users/nghiepnguyen/My Files/Score game/TECH_STACK.md
+/Users/nghiepnguyen/My Files/Score game/public/robots.txt
+/Users/nghiepnguyen/My Files/Score game/public/icons.svg
+/Users/nghiepnguyen/My Files/Score game/public/favicon.svg
+/Users/nghiepnguyen/My Files/Score game/src/assets/hero.png

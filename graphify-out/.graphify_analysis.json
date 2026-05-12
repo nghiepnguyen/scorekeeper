@@ -1,0 +1,173 @@
+{
+  "communities": {
+    "0": [
+      "src_store_gamestore_ts",
+      "store_gamestore_applydeltas",
+      "store_gamestore_createplayerid",
+      "store_gamestore_gamestate",
+      "store_gamestore_getrandomemojis",
+      "store_gamestore_player",
+      "store_gamestore_player_emojis",
+      "store_gamestore_round"
+    ],
+    "1": [
+      "src_app_app",
+      "src_app_copy",
+      "src_app_language",
+      "src_app_playerstats",
+      "src_app_preview_emojis",
+      "src_app_tsx",
+      "src_main_tsx",
+      "store_gamestore_usegamestore"
+    ],
+    "2": [
+      "airtable_design",
+      "firebase_config",
+      "setup_guide",
+      "tech_stack"
+    ],
+    "3": [
+      "app_goals",
+      "mvp_features"
+    ],
+    "4": [
+      "eslint_config_js"
+    ],
+    "5": [
+      "vite_config_ts"
+    ],
+    "6": [
+      "icons_svg"
+    ]
+  },
+  "cohesion": {
+    "0": 0.25,
+    "1": 0.29,
+    "2": 0.5,
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0
+  },
+  "gods": [
+    {
+      "id": "store_gamestore_usegamestore",
+      "label": "useGameStore",
+      "degree": 3
+    },
+    {
+      "id": "tech_stack",
+      "label": "Technology Stack",
+      "degree": 3
+    },
+    {
+      "id": "src_app_app",
+      "label": "App()",
+      "degree": 2
+    },
+    {
+      "id": "src_app_playerstats",
+      "label": "PlayerStats",
+      "degree": 1
+    },
+    {
+      "id": "src_app_language",
+      "label": "Language",
+      "degree": 1
+    },
+    {
+      "id": "src_app_preview_emojis",
+      "label": "PREVIEW_EMOJIS",
+      "degree": 1
+    },
+    {
+      "id": "src_app_copy",
+      "label": "copy",
+      "degree": 1
+    },
+    {
+      "id": "store_gamestore_player",
+      "label": "Player",
+      "degree": 1
+    },
+    {
+      "id": "store_gamestore_round",
+      "label": "Round",
+      "degree": 1
+    },
+    {
+      "id": "store_gamestore_gamestate",
+      "label": "GameState",
+      "degree": 1
+    }
+  ],
+  "surprises": [
+    {
+      "source": "MVP Features",
+      "target": "Application Goals",
+      "source_files": [
+        "FEATURES.md",
+        "README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "implements",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Airtable Design System",
+      "target": "Technology Stack",
+      "source_files": [
+        "DESIGN.md",
+        "TECH_STACK.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Setup Guide",
+      "target": "Technology Stack",
+      "source_files": [
+        "SETUP.md",
+        "TECH_STACK.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "Firebase Configuration",
+      "target": "Technology Stack",
+      "source_files": [
+        "SETUP.md",
+        "TECH_STACK.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "App()",
+      "target": "useGameStore",
+      "source_files": [
+        "src/App.tsx",
+        "src/store/gameStore.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "cross-file semantic connection"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `useGameStore` connect `Community 1` to `Community 0`?",
+      "why": "High betweenness centrality (0.014) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `PlayerStats`, `Language`, `PREVIEW_EMOJIS` to the rest of the system?",
+      "why": "14 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
+}
