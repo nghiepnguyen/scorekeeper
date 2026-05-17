@@ -1,58 +1,78 @@
 # Design System: Neon-Glass Professional
 
-Hệ thống thiết kế của ScoreKeeper được xây dựng theo phong cách **Neon-Glass**, kết hợp giữa sự chuyên nghiệp tối giản và hiệu ứng chiều sâu hiện đại.
+Hệ thống thiết kế ScoreKeeper — glassmorphism tối, accent neon, tối ưu mobile và PC nhỏ.
 
-## 1. Triết lý Thiết kế
-- **Glassmorphism**: Sử dụng các lớp phủ mờ (blur) để tạo cảm giác không gian và chiều sâu.
-- **Neon Accents**: Sử dụng các dải màu Gradient neon (Blue, Emerald, Purple) để tạo điểm nhấn cho hành động.
-- **High-Craft Polish**: Tích hợp lớp phủ **Grain Texture** (nhiễu hạt) giúp giao diện trông sang trọng và chân thực hơn.
+## Triết lý
 
-## 2. Bảng màu (Color Palette)
+- **Glassmorphism:** Panel mờ `backdrop-filter: blur(20px)`, viền sáng mờ.
+- **Neon accents:** Tím `#7c6dff`, emerald thành công, vàng champion.
+- **Grain overlay:** Noise SVG trên `body::before` — giảm độ gắt OLED.
+- **Compact rhythm:** Spacing scale qua CSS variables, thu gọn theo breakpoint.
 
-### Nền & Chữ
-- **Bg Deep**: `#04040a` (Xanh đen cực tối)
-- **Text Primary**: `#ffffff` (Trắng tinh khiết)
-- **Text Secondary**: `rgba(255, 255, 255, 0.7)` (Trắng mờ)
-- **Border**: `rgba(255, 255, 255, 0.08)` (Viền kính mờ)
+## Màu & biến CSS
 
-### Màu nhấn (Accents)
-- **Primary Blue**: `#7c6dff` (Neon Blue/Purple)
-- **Emerald**: `#10b981` (Xanh lục cho các hành động thành công)
-- **Red/Danger**: `#ef4444` (Đỏ cho các hành động xóa/nguy hiểm)
+Định nghĩa trong `:root` (`src/index.css`):
 
-## 3. Hệ thống Typography
-Sử dụng bộ đôi font chữ cao cấp từ Google Fonts:
+| Token | Mục đích |
+|-------|----------|
+| `--theme_bg` | Nền deep `#03030b` |
+| `--theme_surface` | Panel glass |
+| `--theme_cta-primary` | Accent chính |
+| `--space-shell-*`, `--space-panel` | Padding shell/panel (responsive) |
+| `--radius-card`, `--radius-button` | Bo góc |
 
-- **Display (Tiêu đề)**: `Outfit` — Font chữ hiện đại, hình học, tạo cảm giác công nghệ.
-- **Body (Nội dung)**: `Inter` — Font chữ tinh chuẩn, cực kỳ dễ đọc trên mọi kích thước màn hình.
+## Typography
 
-| Cấp độ | Font | Kích thước | Trọng lượng |
-|--------|------|------------|-------------|
-| Display | Outfit | 3.5rem | 700 |
-| Section | Outfit | 2.5rem | 700 |
-| Subhead | Outfit | 1.75rem | 600 |
-| Card Title | Outfit | 1.25rem | 600 |
-| Body | Inter | 1rem | 400 |
+- **Display:** Outfit — tiêu đề, điểm số lớn.
+- **Body:** Inter — form, mô tả, nút.
 
-## 4. Các thành phần chính (Core Components)
+Kích thước dùng `--type-display` … `--type-caption`, giảm dần ở `max-width: 1024px` và `640px`.
 
-### Panel (Bảng nội dung)
-- **Background**: `rgba(255, 255, 255, 0.04)`
-- **Backdrop-filter**: `blur(20px)`
-- **Border-radius**: `24px`
+## Thành phần UI
 
-### Buttons
-- **Primary**: Nền trắng, chữ đen, bo góc 12px.
-- **Ghost/Secondary**: Viền mờ, nền trong suốt, đổi màu khi hover.
+### Panel & Button
 
-### Rank Row (Dòng xếp hạng)
-- Tự động highlight người dẫn đầu (Champion) với hiệu ứng gradient vàng/đồng.
-- Hiệu ứng **Score Pulse** khi điểm số thay đổi.
+- Panel: glass + shadow inset nhẹ.
+- Primary: nền trắng, chữ tối.
+- Ghost / success / danger: viền và nền trong suốt theo ngữ cảnh.
 
-## 5. Hiệu ứng Micro-interactions
-- **Page Transitions**: Chuyển cảnh mượt mà giữa các stage.
-- **Interactive Hover**: Các thẻ và nút bấm có hiệu ứng di chuyển nhẹ (lift-up) và thay đổi độ mờ.
-- **Grain Overlay**: Một lớp SVG noise được phủ cố định để giảm độ gắt của màn hình OLED và tạo cảm giác "Premium Matte".
+### Ranking
+
+- `rank-row` — hàng gọn; `top-one` / `leader` highlight.
+- `score-updated` — pulse khi điểm vừa đổi (live ranking).
+
+### Victory overlay
+
+Khi đạt mốc chiến thắng (`VictoryPopup`):
+
+| Lớp | z-index | Vai trò |
+|-----|---------|---------|
+| `victory-backdrop` | 0 | Mờ + blur, click để đóng |
+| `fireworks-layer` | 1 | Pháo hoa CSS (`Fireworks.tsx`) |
+| `confetti-layer` | 2 | Confetti rơi |
+| `victory-card` | 3 | Nội dung chúc mừng + CTA |
+
+Animation: `fireworkRocket` → `fireworkFlash` → `fireworkParticle`; card `victoryCardIn`.
+
+### Layout chơi game
+
+- Desktop rộng: `content-grid` 2 cột (nhập điểm | xếp hạng).
+- ≤1024px: 1 cột xếp chồng.
+- Mobile: `score-player-grid` 2 cột; `score-actions` lưới 2×2 nút.
+
+## Micro-interactions
+
+- `page-transition` — vào setup / summary.
+- Hover rank row (chỉ thiết bị có `hover: hover`).
+- Confetti ngắn trên Summary sau khi đóng popup.
+
+## Accessibility
+
+- Popup: `role="dialog"`, `aria-modal`, `aria-labelledby`.
+- `prefers-reduced-motion: reduce` — tắt pháo hoa, confetti, pulse.
+- Input `font-size: 16px` trên mobile (tránh zoom iOS).
+- Touch target nút ≥ 44px trên mobile.
 
 ---
-*Mọi thay đổi UI nên tuân thủ nghiêm ngặt hệ thống biến CSS trong `index.css` để đảm bảo tính nhất quán.*
+
+Mọi thay đổi UI nên dùng biến trong `index.css`, tránh hard-code spacing/type lẻ tẻ.

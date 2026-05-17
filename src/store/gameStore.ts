@@ -1,18 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-
-export type Player = {
-  id: string
-  name: string
-  emoji: string
-  score: number
-}
-
-export type Round = {
-  id: string
-  deltas: Record<string, number>
-  createdAt: number
-}
+import { PLAYER_EMOJIS } from '../lib/constants'
+import type { Player, Round } from '../types'
 
 type GameState = {
   gameStarted: boolean
@@ -27,7 +16,6 @@ type GameState = {
 }
 
 const createPlayerId = (index: number) => `player-${index + 1}`
-const PLAYER_EMOJIS = ['🐯', '🦊', '🐼', '🐸', '🦁', '🐨', '🐵', '🐙', '🦄', '🐧', '🐻', '🐺']
 
 const getRandomEmojis = (count: number) => {
   const pool = [...PLAYER_EMOJIS]
