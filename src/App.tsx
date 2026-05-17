@@ -6,6 +6,20 @@ import { ScoreInput } from './components/ScoreInput'
 import { Setup } from './components/Setup'
 import { Summary } from './components/Summary'
 import { VictoryPopup } from './components/VictoryPopup'
+import {
+  trackGameEnd,
+  trackGameReset,
+  trackGameStart,
+  trackLanguageChange,
+  trackRoundAdd,
+  trackRoundDeleteLast,
+  trackRoundEditLast,
+  trackSetupPlayerChange,
+  trackShareResult,
+  trackSummaryBackToMatch,
+  trackVictoryContinue,
+  trackVictoryPopupView,
+} from './lib/analytics'
 import { getCopy } from './lib/copy'
 import { MIN_PLAYERS } from './lib/constants'
 import { computePlayerStats } from './lib/playerStats'
@@ -82,12 +96,25 @@ function App() {
     [playerStats, rounds.length, sortedPlayers, t, winningScore],
   )
 
-  const triggerWinCelebration = () => {
+  const triggerWinCelebration = (scoresAfterRound?: number[]) => {
     setAutoEndedByWinningScore(true)
     setShowVictoryPopup(true)
+    if (winningScore !== null) {
+      const scores = scoresAfterRound ?? players.map((player) => player.score)
+      const winnerCount = scores.filter((score) => score >= winningScore).length
+      trackVictoryPopupView(winnerCount, winningScore)
+    }
   }
 
   const handleVictoryContinue = () => {
+    trackVictoryContinue(rounds.length, players.length)
+    trackGameEnd({
+      endType: 'winning_score',
+      roundCount: rounds.length,
+      playerCount: players.length,
+      winnerCount: winners.length,
+      winningScore: winningScore ?? undefined,
+    })
     setShowVictoryPopup(false)
     setGameEnded(true)
     setShowConfetti(true)
@@ -127,16 +154,24 @@ function App() {
       return
     }
 
+    let parsedWinningScore: number | null = null
     if (winningScoreInput.trim()) {
-      const parsedWinningScore = Number(winningScoreInput)
-      if (!Number.isFinite(parsedWinningScore)) {
+      const parsed = Number(winningScoreInput)
+      if (!Number.isFinite(parsed)) {
         return
       }
-      setWinningScore(parsedWinningScore)
+      parsedWinningScore = parsed
+      setWinningScore(parsed)
     } else {
       setWinningScore(null)
     }
 
+    trackGameStart({
+      playerCount: trimmedNames.length,
+      startingScore: initial,
+      hasWinningScore: parsedWinningScore !== null,
+      winningScore: parsedWinningScore ?? undefined,
+    })
     startGame(trimmedNames, initial)
     setSetupError('')
     setGameEnded(false)
@@ -160,8 +195,9 @@ function App() {
     setUpdatedPlayerIds(affectedIds)
     setTimeout(() => setUpdatedPlayerIds(new Set()), 600)
 
+    trackRoundAdd(rounds.length + 1, players.length)
     if (reachesWinningScore(nextScores, winningScore)) {
-      triggerWinCelebration()
+      triggerWinCelebration(nextScores)
     }
     clearRoundInputs()
   }
@@ -169,18 +205,25 @@ function App() {
   const handleEditLastRound = () => {
     const deltas = normalizeRoundInput(players, roundInputs)
     const nextScores = simulateScoresAfterEditLast(players, rounds, deltas)
+    trackRoundEditLast(rounds.length, players.length)
     updateLastRound(deltas)
     if (reachesWinningScore(nextScores, winningScore)) {
-      triggerWinCelebration()
+      triggerWinCelebration(nextScores)
     }
     clearRoundInputs()
   }
 
   const handleDeleteLastRound = () => {
     deleteLastRound()
+    trackRoundDeleteLast(Math.max(0, rounds.length - 1), players.length)
   }
 
   const handleEndGame = () => {
+    trackGameEnd({
+      endType: 'manual',
+      roundCount: rounds.length,
+      playerCount: players.length,
+    })
     setAutoEndedByWinningScore(false)
     setGameEnded(true)
     setCopyStatus('')
@@ -190,9 +233,18 @@ function App() {
     try {
       await navigator.clipboard.writeText(shareText)
       setCopyStatus(t.copied)
+      trackShareResult(true)
     } catch {
       setCopyStatus(t.copyFailed)
+      trackShareResult(false)
     }
+  }
+
+  const handleLanguageChange = (next: Language) => {
+    if (next !== language) {
+      trackLanguageChange(next)
+    }
+    setLanguage(next)
   }
 
   const addPlayerField = () => {
@@ -200,7 +252,11 @@ function App() {
       return
     }
     shouldFocusNewPlayerRef.current = true
-    setPlayerNames((prev) => [...prev, ''])
+    setPlayerNames((prev) => {
+      const next = [...prev, '']
+      trackSetupPlayerChange('add', next.length)
+      return next
+    })
     setSetupError('')
   }
 
@@ -209,7 +265,11 @@ function App() {
       setSetupError(t.minPlayersError)
       return
     }
-    setPlayerNames((prev) => prev.slice(0, -1))
+    setPlayerNames((prev) => {
+      const next = prev.slice(0, -1)
+      trackSetupPlayerChange('remove', next.length)
+      return next
+    })
     setSetupError('')
   }
 
@@ -231,6 +291,7 @@ function App() {
   }, [playerNames.length])
 
   const handleResetGame = () => {
+    trackGameReset(gameEnded ? 'summary' : 'match')
     setGameEnded(false)
     setAutoEndedByWinningScore(false)
     setShowConfetti(false)
@@ -256,7 +317,7 @@ function App() {
         />
       ) : null}
 
-      <AppHeader t={t} language={language} onLanguageChange={setLanguage} />
+      <AppHeader t={t} language={language} onLanguageChange={handleLanguageChange} />
 
       {!gameStarted ? (
         <Setup
@@ -294,7 +355,10 @@ function App() {
           showConfetti={showConfetti}
           shareText={shareText}
           copyStatus={copyStatus}
-          onBackToMatch={() => setGameEnded(false)}
+          onBackToMatch={() => {
+            trackSummaryBackToMatch(rounds.length)
+            setGameEnded(false)
+          }}
           onResetGame={handleResetGame}
           onCopyResult={handleCopyResult}
         />
