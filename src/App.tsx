@@ -33,7 +33,20 @@ import {
 } from './lib/roundScoring'
 import { buildShareText } from './lib/shareText'
 import { useGameStore } from './store/gameStore'
-import type { Language } from './types'
+import type { Language, Player } from './types'
+
+type VictoryCelebration = {
+  winners: Player[]
+  targetScore: number
+}
+
+function leadersAtTop(sortedPlayers: Player[]): Player[] {
+  const topScore = sortedPlayers[0]?.score
+  if (topScore === undefined) {
+    return []
+  }
+  return sortedPlayers.filter((player) => player.score === topScore)
+}
 
 function App() {
   const { gameStarted, players, rounds, startGame, addRound, updateLastRound, deleteLastRound, resetGame } =
@@ -50,6 +63,8 @@ function App() {
   const [language, setLanguage] = useState<Language>('vi')
   const [showConfetti, setShowConfetti] = useState(false)
   const [showVictoryPopup, setShowVictoryPopup] = useState(false)
+  const [victoryPopupData, setVictoryPopupData] = useState<VictoryCelebration | null>(null)
+  const [victoryEndedManually, setVictoryEndedManually] = useState(false)
   const [setupError, setSetupError] = useState('')
   const confettiTimerRef = useRef<number | null>(null)
   const playerInputRefs = useRef<Array<HTMLInputElement | null>>([])
@@ -96,26 +111,45 @@ function App() {
     [playerStats, rounds.length, sortedPlayers, t, winningScore],
   )
 
-  const triggerWinCelebration = (scoresAfterRound?: number[]) => {
+  const openVictoryPopup = (celebration: VictoryCelebration, fromManualEnd: boolean) => {
+    setVictoryPopupData(celebration)
+    setVictoryEndedManually(fromManualEnd)
     setAutoEndedByWinningScore(true)
     setShowVictoryPopup(true)
-    if (winningScore !== null) {
-      const scores = scoresAfterRound ?? players.map((player) => player.score)
-      const winnerCount = scores.filter((score) => score >= winningScore).length
-      trackVictoryPopupView(winnerCount, winningScore)
+    trackVictoryPopupView(celebration.winners.length, celebration.targetScore)
+  }
+
+  const closeVictoryPopup = () => {
+    setShowVictoryPopup(false)
+    setVictoryPopupData(null)
+    setVictoryEndedManually(false)
+  }
+
+  const buildThresholdCelebration = (scoresAfterRound: number[]): VictoryCelebration | null => {
+    if (winningScore === null) {
+      return null
+    }
+    const thresholdWinners = players.filter((_, index) => scoresAfterRound[index] >= winningScore)
+    if (thresholdWinners.length === 0) {
+      return null
+    }
+    return {
+      winners: sortPlayers(thresholdWinners),
+      targetScore: winningScore,
     }
   }
 
   const handleVictoryContinue = () => {
+    const celebration = victoryPopupData
     trackVictoryContinue(rounds.length, players.length)
     trackGameEnd({
-      endType: 'winning_score',
+      endType: victoryEndedManually ? 'manual' : 'winning_score',
       roundCount: rounds.length,
       playerCount: players.length,
-      winnerCount: winners.length,
-      winningScore: winningScore ?? undefined,
+      winnerCount: celebration?.winners.length ?? 0,
+      winningScore: celebration?.targetScore,
     })
-    setShowVictoryPopup(false)
+    closeVictoryPopup()
     setGameEnded(true)
     setShowConfetti(true)
     if (confettiTimerRef.current !== null) {
@@ -176,6 +210,7 @@ function App() {
     setSetupError('')
     setGameEnded(false)
     setAutoEndedByWinningScore(false)
+    closeVictoryPopup()
     setCopyStatus('')
     setRoundInputs(
       trimmedNames.reduce<Record<string, string>>((acc, _, index) => {
@@ -197,7 +232,10 @@ function App() {
 
     trackRoundAdd(rounds.length + 1, players.length)
     if (reachesWinningScore(nextScores, winningScore)) {
-      triggerWinCelebration(nextScores)
+      const celebration = buildThresholdCelebration(nextScores)
+      if (celebration) {
+        openVictoryPopup(celebration, false)
+      }
     }
     clearRoundInputs()
   }
@@ -208,7 +246,10 @@ function App() {
     trackRoundEditLast(rounds.length, players.length)
     updateLastRound(deltas)
     if (reachesWinningScore(nextScores, winningScore)) {
-      triggerWinCelebration(nextScores)
+      const celebration = buildThresholdCelebration(nextScores)
+      if (celebration) {
+        openVictoryPopup(celebration, false)
+      }
     }
     clearRoundInputs()
   }
@@ -219,12 +260,37 @@ function App() {
   }
 
   const handleEndGame = () => {
+    if (rounds.length === 0) {
+      return
+    }
+
+    let celebration: VictoryCelebration | null = null
+    if (winningScore !== null && winners.length > 0) {
+      celebration = { winners, targetScore: winningScore }
+    } else {
+      const leaders = leadersAtTop(sortedPlayers)
+      if (leaders.length > 0) {
+        celebration = {
+          winners: leaders,
+          targetScore: winningScore ?? leaders[0].score,
+        }
+      }
+    }
+
+    if (celebration) {
+      openVictoryPopup(celebration, true)
+      setCopyStatus('')
+      return
+    }
+
     trackGameEnd({
       endType: 'manual',
       roundCount: rounds.length,
       playerCount: players.length,
     })
     setAutoEndedByWinningScore(false)
+    closeVictoryPopup()
+    setShowConfetti(false)
     setGameEnded(true)
     setCopyStatus('')
   }
@@ -295,7 +361,7 @@ function App() {
     setGameEnded(false)
     setAutoEndedByWinningScore(false)
     setShowConfetti(false)
-    setShowVictoryPopup(false)
+    closeVictoryPopup()
     if (confettiTimerRef.current !== null) {
       window.clearTimeout(confettiTimerRef.current)
       confettiTimerRef.current = null
@@ -308,11 +374,11 @@ function App() {
 
   return (
     <main className={`app-shell ${transitionStage === 'entering' ? 'page-transition' : ''}`}>
-      {showVictoryPopup && winningScore !== null && winners.length > 0 ? (
+      {showVictoryPopup && !gameEnded && victoryPopupData ? (
         <VictoryPopup
           t={t}
-          winners={winners}
-          winningScore={winningScore}
+          winners={victoryPopupData.winners}
+          winningScore={victoryPopupData.targetScore}
           onContinue={handleVictoryContinue}
         />
       ) : null}
