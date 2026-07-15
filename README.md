@@ -19,11 +19,14 @@ ScoreKeeper là ứng dụng web theo dõi điểm cho trò chơi nhóm (board g
 ## Công nghệ
 
 | Lớp | Stack |
-|-----|--------|
+| --- | --- |
 | UI | React 19 + TypeScript |
 | Build | Vite 8 |
 | Style | Vanilla CSS (Neon-Glass, CSS variables) |
-| State | Zustand 5 |
+| State | Zustand 5 (persist → localStorage) |
+| Testing | Vitest + jsdom |
+| Analytics | Google Analytics 4 + Vercel Web Analytics |
+| CI | GitHub Actions (lint + build trên push/PR `main`) |
 | Deploy | Vercel + custom domain |
 
 ## Cấu trúc dự án
@@ -32,10 +35,11 @@ ScoreKeeper là ứng dụng web theo dõi điểm cho trò chơi nhóm (board g
 scorekeeper/
 ├── src/
 │   ├── components/       # UI: Setup, ScoreInput, Ranking, Summary, VictoryPopup…
-│   ├── lib/              # copy (i18n), roundScoring, playerStats, shareText
-│   ├── store/            # gameStore (Zustand)
-│   ├── types/            # Player, Round, Language…
+│   ├── lib/              # copy (i18n), roundScoring, playerStats, shareText, analytics (GA4), *.test.ts
+│   ├── store/            # gameStore (Zustand + persist), gameStore.test.ts
+│   ├── types/            # Player, Round, Language, PlayerStats…
 │   ├── App.tsx           # Điều phối luồng game
+│   ├── main.tsx          # Entry point + Vercel Analytics
 │   └── index.css         # Design system + responsive
 ├── public/
 │   ├── robots.txt
@@ -52,7 +56,7 @@ scorekeeper/
 Metadata cấu hình trong `index.html`:
 
 | Mục | Giá trị |
-|-----|---------|
+| --- | --- |
 | Title | ScoreKeeper - Bảng ghi điểm |
 | Canonical | `https://gs.thanhnghiep.top/` |
 | OG image | `https://thanhnghiep.top/CVMatcher/scorekeeper.jpeg` (1280×720) |
