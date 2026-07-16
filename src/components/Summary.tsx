@@ -56,7 +56,7 @@ export function Summary({
         ) : null}
       </div>
       <div className="title-row summary-actions">
-        <button type="button" className="button secondary" onClick={onBackToMatch}>
+        <button type="button" className="button secondary" onClick={onBackToMatch} disabled={readOnly}>
           {t.backToMatch}
         </button>
         <button type="button" className="button primary" onClick={onResetGame} disabled={readOnly}>

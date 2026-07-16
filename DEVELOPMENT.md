@@ -74,9 +74,11 @@ Browser
 
 **State & persistence (`src/store/gameStore.ts`):**
 
-Zustand store `useGameStore`: `players`, `rounds`, `gameStarted`, `startingScore`, `roomCode`, `deviceId`, `isHost`, `syncStatus`, actions `startGame`, `addRound`, `updateLastRound`, `deleteLastRound`, `resetGame`, `leaveRoom`, `createRoom`, `joinRoom`, `applyRemoteState`.
+Zustand store `useGameStore`: `players`, `rounds`, `gameStarted`, `startingScore`, `winningScore`, `gameEnded`, `roomCode`, `deviceId`, `isHost`, `syncStatus`, actions `startGame`, `addRound`, `updateLastRound`, `deleteLastRound`, `setGameEnded`, `resetGame`, `leaveRoom`, `createRoom`, `joinRoom`, `applyRemoteState`.
 
-Dùng middleware `persist` (`zustand/middleware`) ghi xuống `localStorage` dưới key `scorekeeper-game-state` (`partialize`: `gameStarted`, `startingScore`, `players`, `rounds`, `roomCode`). Nghĩa là **reload trang không mất ván đang chơi**, và nếu đang ở trong 1 phòng sync thì reload vẫn tự kết nối lại phòng đó. Xóa thủ công qua `localStorage.removeItem('scorekeeper-game-state')` hoặc `resetGame()` (chỉ host mới `resetGame()` được khi đang ở trong phòng — xem mục Firebase bên dưới).
+Dùng middleware `persist` (`zustand/middleware`) ghi xuống `localStorage` dưới key `scorekeeper-game-state` (`partialize`: `gameStarted`, `startingScore`, `winningScore`, `gameEnded`, `players`, `rounds`, `roomCode`). Nghĩa là **reload trang không mất ván đang chơi**, và nếu đang ở trong 1 phòng sync thì reload vẫn tự kết nối lại phòng đó. Xóa thủ công qua `localStorage.removeItem('scorekeeper-game-state')` hoặc `resetGame()` (chỉ host mới `resetGame()` được khi đang ở trong phòng — xem mục Firebase bên dưới).
+
+`winningScore` và `gameEnded` từng chỉ là state cục bộ trong `App.tsx` (không đồng bộ) — đã chuyển vào store để viewer cũng tính đúng "ai đang thắng" và tự chuyển sang màn `Summary` khi host kết thúc trận, thay vì chỉ host mới thấy. `setGameEnded(ended)` là action host-gated (giống `addRound`...) dùng cho cả 2 chiều: host bấm "Kết thúc game"/xác nhận popup chiến thắng (`true`) lẫn "Quay lại trận đấu" từ màn Summary (`false`) — viewer không có quyền gọi, 2 nút tương ứng trong `Summary.tsx` bị `disabled` khi `readOnly`.
 
 `resetGame()` và `leaveRoom()` khác nhau: `resetGame()` là hành động của host — reset toàn bộ (kể cả xóa `roomCode`/`isHost` cục bộ), bị chặn nếu gọi từ máy không phải host. `leaveRoom()` là lối thoát cho viewer — không cần quyền host, chỉ xóa state cục bộ (không đụng Firestore), dùng khi viewer muốn rời phòng đang xem (nút "Rời phòng" luôn hiện phía trên `AppHeader` khi `roomCode` set và `isHost === false`, xem `App.tsx`).
 
@@ -205,14 +207,14 @@ UI liên quan (style trong `src/index.css`, section "Room / realtime sync UI"): 
 
 ### Data model
 
-Collection `rooms`, document id = room code (6 ký tự, bỏ ký tự dễ nhầm `0/O/1/I/L`). Field: `roomCode`, `hostDeviceId`, `gameStarted`, `startingScore`, `players`, `rounds`, `allowGuestScoring`, `createdAt`, `updatedAt` — xem type `RoomState` trong `src/lib/roomSync.ts`.
+Collection `rooms`, document id = room code (6 ký tự, bỏ ký tự dễ nhầm `0/O/1/I/L`). Field: `roomCode`, `hostDeviceId`, `gameStarted`, `startingScore`, `winningScore`, `gameEnded`, `players`, `rounds`, `allowGuestScoring`, `createdAt`, `updatedAt` — xem type `RoomState` trong `src/lib/roomSync.ts`.
 
 ### Luồng
 
 1. Host bấm "Chia sẻ phòng (đồng bộ)" (`ScoreInput.tsx`) → `useGameStore.createRoom()` → sinh room code, ghi document, set `isHost = true`. `useRoomSync` thấy `roomCode` đổi → tự thêm `?room=<code>` vào URL (`setRoomCodeInUrl`).
 2. Người khác mở link (hoặc gõ mã ở khối "Có mã phòng?" trên màn Setup) → `useRoomSync` đọc `?room=` từ URL → `joinRoom(code)` → `isHost = (hostDeviceId === deviceId cục bộ)` → luôn `false` cho người vào sau.
 3. `useRoomSync` (`src/hooks/useRoomSync.ts`) subscribe `onSnapshot` theo `roomCode` hiện tại trong store — mọi thay đổi trên Firestore tự đẩy vào `applyRemoteState()`, không cần refresh.
-4. Mọi action đổi điểm (`addRound`, `updateLastRound`, `deleteLastRound`, `startGame`, `resetGame`) đều no-op nếu `roomCode` đang set và `isHost === false` — chặn ở tầng store, không chỉ ẩn UI.
+4. Mọi action đổi điểm/trạng thái (`addRound`, `updateLastRound`, `deleteLastRound`, `startGame`, `setGameEnded`, `resetGame`) đều no-op nếu `roomCode` đang set và `isHost === false` — chặn ở tầng store, không chỉ ẩn UI. Nhờ `winningScore`/`gameEnded` cũng nằm trong state đồng bộ, viewer tự tính đúng "ai đang thắng" (banner `winner-notice` hiện ngay cả khi chỉ còn màn `Ranking`) và tự chuyển sang `Summary` khi host kết thúc trận — không cần logic riêng cho viewer.
 5. Rời phòng: host gọi `resetGame()` (nút "Tạo phòng mới"), viewer gọi `leaveRoom()` (nút "Rời phòng", luôn hiện phía trên header khi đang xem phòng người khác). Cả hai đều xóa `?room=` khỏi URL (`clearRoomCodeFromUrl`, gọi tự động trong `useRoomSync` khi `roomCode` về `null`) — tránh bug cũ: URL giữ mã phòng cũ, F5 xong bị tự động join lại phòng đã rời.
 6. Ghi lên Firestore (`writeRoomStateSafely` trong `gameStore.ts`) không `await`/chặn UI (fire-and-forget), nhưng có bắt lỗi: ghi thất bại thì log `console.error('[roomSync] writeRoomState failed', ...)` và set `syncStatus = 'error'` — hiển thị thành banner đỏ trong `room-bar` (ScoreInput cho host, thanh trạng thái đầu trang cho viewer).
 

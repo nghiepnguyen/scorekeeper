@@ -6,12 +6,15 @@ service cloud.firestore {
     function isValidRoom(data, roomCode) {
       return data.keys().hasOnly([
           'roomCode', 'hostDeviceId', 'gameStarted', 'startingScore',
-          'players', 'rounds', 'allowGuestScoring', 'createdAt', 'updatedAt'
+          'winningScore', 'gameEnded', 'players', 'rounds',
+          'allowGuestScoring', 'createdAt', 'updatedAt'
         ])
         && data.roomCode is string && data.roomCode == roomCode
         && data.hostDeviceId is string
         && data.gameStarted is bool
         && data.startingScore is number
+        && (data.winningScore == null || data.winningScore is number)
+        && data.gameEnded is bool
         && data.players is list && data.players.size() <= 32
         && data.rounds is list && data.rounds.size() <= 3000
         && data.allowGuestScoring is bool

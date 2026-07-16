@@ -9,7 +9,6 @@ type ScoreInputProps = {
   players: Player[]
   roundInputs: Record<string, string>
   roundCount: number
-  winnerNotice: string
   roomCode: string | null
   syncStatus: SyncStatus
   roomLinkStatus: string
@@ -29,7 +28,6 @@ export function ScoreInput({
   players,
   roundInputs,
   roundCount,
-  winnerNotice,
   roomCode,
   syncStatus,
   roomLinkStatus,
@@ -45,7 +43,6 @@ export function ScoreInput({
 }: ScoreInputProps) {
   return (
     <article className="panel">
-      {winnerNotice ? <p className="winner-notice animate-pop">{winnerNotice}</p> : null}
       <div className="title-row">
         <h2 className="type-subheading">{t.scoreInputHeading}</h2>
         <button type="button" className="button ghost" onClick={onResetGame}>

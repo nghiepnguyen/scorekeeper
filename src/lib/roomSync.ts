@@ -7,6 +7,8 @@ export type RoomState = {
   hostDeviceId: string
   gameStarted: boolean
   startingScore: number
+  winningScore: number | null
+  gameEnded: boolean
   players: Player[]
   rounds: Round[]
   allowGuestScoring: boolean
@@ -31,7 +33,10 @@ function roomDocRef(roomCode: string) {
 }
 
 export async function createRoom(
-  initialState: Pick<RoomState, 'gameStarted' | 'startingScore' | 'players' | 'rounds'>,
+  initialState: Pick<
+    RoomState,
+    'gameStarted' | 'startingScore' | 'winningScore' | 'gameEnded' | 'players' | 'rounds'
+  >,
   hostDeviceId: string,
 ): Promise<string> {
   for (let attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {

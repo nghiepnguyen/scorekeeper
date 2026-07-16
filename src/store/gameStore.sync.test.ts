@@ -14,6 +14,8 @@ const resetStore = () => {
   useGameStore.setState({
     gameStarted: false,
     startingScore: 0,
+    winningScore: null,
+    gameEnded: false,
     players: [],
     rounds: [],
     roomCode: null,
@@ -54,6 +56,8 @@ describe('useGameStore sync behavior', () => {
         hostDeviceId: 'someone-else',
         gameStarted: true,
         startingScore: 10,
+        winningScore: 50,
+        gameEnded: false,
         players: [{ id: 'player-1', name: 'Ann', emoji: '🐱', score: 10 }],
         rounds: [],
         allowGuestScoring: false,
@@ -68,6 +72,7 @@ describe('useGameStore sync behavior', () => {
       expect(state.roomCode).toBe('ABC123')
       expect(state.isHost).toBe(false)
       expect(state.players).toHaveLength(1)
+      expect(state.winningScore).toBe(50)
       expect(state.syncStatus).toBe('connected')
     })
 
@@ -105,6 +110,28 @@ describe('useGameStore sync behavior', () => {
 
       expect(useGameStore.getState().players[0].score).toBe(0)
       expect(useGameStore.getState().rounds).toHaveLength(0)
+      expect(writeRoomState).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('setGameEnded with an active room', () => {
+    it('sets gameEnded and writes to Firestore when the local device is host', () => {
+      useGameStore.getState().startGame(['Ann'], 0, 50)
+      useGameStore.setState({ roomCode: 'ABC123', isHost: true })
+
+      useGameStore.getState().setGameEnded(true)
+
+      expect(useGameStore.getState().gameEnded).toBe(true)
+      expect(writeRoomState).toHaveBeenCalledWith('ABC123', { gameEnded: true })
+    })
+
+    it('is a no-op when the local device is not host', () => {
+      useGameStore.getState().startGame(['Ann'], 0, 50)
+      useGameStore.setState({ roomCode: 'ABC123', isHost: false })
+
+      useGameStore.getState().setGameEnded(true)
+
+      expect(useGameStore.getState().gameEnded).toBe(false)
       expect(writeRoomState).not.toHaveBeenCalled()
     })
   })

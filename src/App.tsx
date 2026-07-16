@@ -54,10 +54,13 @@ function App() {
     gameStarted,
     players,
     rounds,
+    winningScore,
+    gameEnded,
     startGame,
     addRound,
     updateLastRound,
     deleteLastRound,
+    setGameEnded,
     resetGame,
     leaveRoom,
     roomCode,
@@ -75,9 +78,7 @@ function App() {
   const [winningScoreInput, setWinningScoreInput] = useState('')
   const [playerNames, setPlayerNames] = useState(['', ''])
   const [roundInputs, setRoundInputs] = useState<Record<string, string>>({})
-  const [gameEnded, setGameEnded] = useState(false)
   const [copyStatus, setCopyStatus] = useState('')
-  const [winningScore, setWinningScore] = useState<number | null>(null)
   const [autoEndedByWinningScore, setAutoEndedByWinningScore] = useState(false)
   const [language, setLanguage] = useState<Language>('vi')
   const [showConfetti, setShowConfetti] = useState(false)
@@ -151,7 +152,8 @@ function App() {
     if (winningScore === null) {
       return null
     }
-    const thresholdWinners = players.filter((_, index) => scoresAfterRound[index] >= winningScore)
+    const updatedPlayers = players.map((player, index) => ({ ...player, score: scoresAfterRound[index] }))
+    const thresholdWinners = updatedPlayers.filter((player) => player.score >= winningScore)
     if (thresholdWinners.length === 0) {
       return null
     }
@@ -217,9 +219,6 @@ function App() {
         return
       }
       parsedWinningScore = parsed
-      setWinningScore(parsed)
-    } else {
-      setWinningScore(null)
     }
 
     trackGameStart({
@@ -228,9 +227,8 @@ function App() {
       hasWinningScore: parsedWinningScore !== null,
       winningScore: parsedWinningScore ?? undefined,
     })
-    startGame(trimmedNames, initial)
+    startGame(trimmedNames, initial, parsedWinningScore)
     setSetupError('')
-    setGameEnded(false)
     setAutoEndedByWinningScore(false)
     closeVictoryPopup()
     setCopyStatus('')
@@ -380,7 +378,6 @@ function App() {
 
   const handleResetGame = () => {
     trackGameReset(gameEnded ? 'summary' : 'match')
-    setGameEnded(false)
     setAutoEndedByWinningScore(false)
     setShowConfetti(false)
     closeVictoryPopup()
@@ -389,7 +386,6 @@ function App() {
       confettiTimerRef.current = null
     }
     setCopyStatus('')
-    setWinningScore(null)
     setWinningScoreInput('')
     resetGame()
   }
@@ -420,7 +416,6 @@ function App() {
     leaveRoom()
     setJoinCodeInput('')
     setJoinRoomError('')
-    setGameEnded(false)
   }
 
   return (
@@ -526,14 +521,15 @@ function App() {
           onCopyResult={handleCopyResult}
         />
       ) : (
-        <section className={`content-grid${readOnly ? ' single' : ''}`}>
+        <>
+          {winnerNotice ? <p className="winner-notice animate-pop">{winnerNotice}</p> : null}
+          <section className={`content-grid${readOnly ? ' single' : ''}`}>
           {!readOnly ? (
             <ScoreInput
               t={t}
               players={players}
               roundInputs={roundInputs}
               roundCount={rounds.length}
-              winnerNotice={winnerNotice}
               roomCode={roomCode}
               syncStatus={syncStatus}
               roomLinkStatus={roomLinkStatus}
@@ -561,7 +557,8 @@ function App() {
             leaderScore={leaderScore}
             updatedPlayerIds={updatedPlayerIds}
           />
-        </section>
+          </section>
+        </>
       )}
     </main>
   )
