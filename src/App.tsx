@@ -33,6 +33,7 @@ import {
 } from './lib/roundScoring'
 import { buildShareText } from './lib/shareText'
 import { useGameStore } from './store/gameStore'
+import { useRoomSync } from './hooks/useRoomSync'
 import type { Language, Player } from './types'
 
 type VictoryCelebration = {
@@ -49,8 +50,26 @@ function leadersAtTop(sortedPlayers: Player[]): Player[] {
 }
 
 function App() {
-  const { gameStarted, players, rounds, startGame, addRound, updateLastRound, deleteLastRound, resetGame } =
-    useGameStore()
+  const {
+    gameStarted,
+    players,
+    rounds,
+    startGame,
+    addRound,
+    updateLastRound,
+    deleteLastRound,
+    resetGame,
+    leaveRoom,
+    roomCode,
+    isHost,
+    syncStatus,
+    createRoom,
+    joinRoom,
+  } = useGameStore()
+
+  useRoomSync()
+
+  const readOnly = roomCode !== null && !isHost
 
   const [startingScore, setStartingScore] = useState('0')
   const [winningScoreInput, setWinningScoreInput] = useState('')
@@ -66,6 +85,9 @@ function App() {
   const [victoryPopupData, setVictoryPopupData] = useState<VictoryCelebration | null>(null)
   const [victoryEndedManually, setVictoryEndedManually] = useState(false)
   const [setupError, setSetupError] = useState('')
+  const [joinCodeInput, setJoinCodeInput] = useState('')
+  const [joinRoomError, setJoinRoomError] = useState('')
+  const [roomLinkStatus, setRoomLinkStatus] = useState('')
   const confettiTimerRef = useRef<number | null>(null)
   const playerInputRefs = useRef<Array<HTMLInputElement | null>>([])
   const shouldFocusNewPlayerRef = useRef(false)
@@ -372,6 +394,35 @@ function App() {
     resetGame()
   }
 
+  const handleCreateRoom = async () => {
+    setRoomLinkStatus('')
+    await createRoom()
+  }
+
+  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const code = joinCodeInput.trim().toUpperCase()
+    if (!code) return
+    const joined = await joinRoom(code)
+    setJoinRoomError(joined ? '' : t.joinRoomError)
+  }
+
+  const handleCopyRoomLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setRoomLinkStatus(t.roomLinkCopied)
+    } catch {
+      setRoomLinkStatus(t.copyFailed)
+    }
+  }
+
+  const handleLeaveRoom = () => {
+    leaveRoom()
+    setJoinCodeInput('')
+    setJoinRoomError('')
+    setGameEnded(false)
+  }
+
   return (
     <main className={`app-shell ${transitionStage === 'entering' ? 'page-transition' : ''}`}>
       {showVictoryPopup && !gameEnded && victoryPopupData ? (
@@ -385,7 +436,51 @@ function App() {
 
       <AppHeader t={t} language={language} onLanguageChange={handleLanguageChange} />
 
+      {readOnly ? (
+        <div className="room-bar">
+          <div className="room-bar-info">
+            <span className="room-status">
+              <span
+                className={`room-status-dot${syncStatus === 'error' ? ' is-error' : ''}`}
+                aria-hidden="true"
+              />
+              {t.liveSyncLabel}
+              <span className="room-code-pill">{roomCode ?? ''}</span>
+            </span>
+            {syncStatus === 'error' ? <span className="sync-error-banner">{t.syncErrorNotice}</span> : null}
+          </div>
+          <div className="room-bar-actions">
+            <button type="button" className="button ghost" onClick={handleLeaveRoom}>
+              {t.leaveRoom}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {!gameStarted ? (
+        <>
+          {!roomCode ? (
+            <form onSubmit={handleJoinRoom} className="join-room-bar">
+              <label className="field">
+                <span className="micro-label">{t.joinRoomLabel}</span>
+                <div className="field-inline">
+                  <input
+                    type="text"
+                    placeholder={t.joinRoomPlaceholder}
+                    value={joinCodeInput}
+                    onChange={(event) => {
+                      setJoinCodeInput(event.target.value)
+                      setJoinRoomError('')
+                    }}
+                  />
+                  <button type="submit" className="button ghost">
+                    {t.joinRoomButton}
+                  </button>
+                </div>
+              </label>
+              {joinRoomError ? <p className="form-error">{joinRoomError}</p> : null}
+            </form>
+          ) : null}
         <Setup
           t={t}
           startingScore={startingScore}
@@ -410,6 +505,7 @@ function App() {
           onRemovePlayer={removePlayerField}
           onSubmit={handleStartGame}
         />
+        </>
       ) : gameEnded ? (
         <Summary
           t={t}
@@ -421,6 +517,7 @@ function App() {
           showConfetti={showConfetti}
           shareText={shareText}
           copyStatus={copyStatus}
+          readOnly={readOnly}
           onBackToMatch={() => {
             trackSummaryBackToMatch(rounds.length)
             setGameEnded(false)
@@ -429,27 +526,34 @@ function App() {
           onCopyResult={handleCopyResult}
         />
       ) : (
-        <section className="content-grid">
-          <ScoreInput
-            t={t}
-            players={players}
-            roundInputs={roundInputs}
-            roundCount={rounds.length}
-            winnerNotice={winnerNotice}
-            onRoundInputChange={(playerId, value) =>
-              setRoundInputs((prev) => ({ ...prev, [playerId]: value }))
-            }
-            onRoundInputFocus={(playerId) => {
-              if ((roundInputs[playerId] ?? '') === '0') {
-                setRoundInputs((prev) => ({ ...prev, [playerId]: '' }))
+        <section className={`content-grid${readOnly ? ' single' : ''}`}>
+          {!readOnly ? (
+            <ScoreInput
+              t={t}
+              players={players}
+              roundInputs={roundInputs}
+              roundCount={rounds.length}
+              winnerNotice={winnerNotice}
+              roomCode={roomCode}
+              syncStatus={syncStatus}
+              roomLinkStatus={roomLinkStatus}
+              onCreateRoom={handleCreateRoom}
+              onCopyRoomLink={handleCopyRoomLink}
+              onRoundInputChange={(playerId, value) =>
+                setRoundInputs((prev) => ({ ...prev, [playerId]: value }))
               }
-            }}
-            onSubmit={handleAddRound}
-            onEditLastRound={handleEditLastRound}
-            onEndGame={handleEndGame}
-            onDeleteLastRound={handleDeleteLastRound}
-            onResetGame={handleResetGame}
-          />
+              onRoundInputFocus={(playerId) => {
+                if ((roundInputs[playerId] ?? '') === '0') {
+                  setRoundInputs((prev) => ({ ...prev, [playerId]: '' }))
+                }
+              }}
+              onSubmit={handleAddRound}
+              onEditLastRound={handleEditLastRound}
+              onEndGame={handleEndGame}
+              onDeleteLastRound={handleDeleteLastRound}
+              onResetGame={handleResetGame}
+            />
+          ) : null}
           <Ranking
             t={t}
             variant="live"

@@ -1,18 +1,30 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { PLAYER_EMOJIS } from '../lib/constants'
+import { getOrCreateDeviceId } from '../lib/deviceId'
+import { createRoom as createRoomInFirestore, joinRoom as joinRoomInFirestore, writeRoomState, type RoomState } from '../lib/roomSync'
 import type { Player, Round } from '../types'
+
+type SyncStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
 type GameState = {
   gameStarted: boolean
   startingScore: number
   players: Player[]
   rounds: Round[]
+  roomCode: string | null
+  deviceId: string
+  isHost: boolean
+  syncStatus: SyncStatus
   startGame: (playerNames: string[], startingScore: number) => void
   addRound: (deltas: Record<string, number>) => void
   updateLastRound: (deltas: Record<string, number>) => void
   deleteLastRound: () => void
   resetGame: () => void
+  leaveRoom: () => void
+  createRoom: () => Promise<string>
+  joinRoom: (roomCode: string) => Promise<boolean>
+  applyRemoteState: (room: RoomState | null) => void
 }
 
 const createPlayerId = (index: number) => `player-${index + 1}`
@@ -34,12 +46,27 @@ const applyDeltas = (players: Player[], deltas: Record<string, number>, sign: 1 
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set) => ({
+    (set, get) => {
+      const writeRoomStateSafely = (roomCode: string, partial: Parameters<typeof writeRoomState>[1]) => {
+        writeRoomState(roomCode, partial).catch((error) => {
+          console.error('[roomSync] writeRoomState failed', error)
+          set({ syncStatus: 'error' })
+        })
+      }
+
+      return {
       gameStarted: false,
       startingScore: 0,
       players: [],
       rounds: [],
-      startGame: (playerNames, startingScore) =>
+      roomCode: null,
+      deviceId: getOrCreateDeviceId(),
+      isHost: false,
+      syncStatus: 'idle',
+      startGame: (playerNames, startingScore) => {
+        const state = get()
+        if (state.roomCode && !state.isHost) return
+
         set(() => {
           const emojis = getRandomEmojis(playerNames.length)
           return {
@@ -53,61 +80,141 @@ export const useGameStore = create<GameState>()(
               score: startingScore,
             })),
           }
-        }),
-      addRound: (deltas) =>
-        set((state) => ({
-          rounds: [
-            ...state.rounds,
-            {
-              id: crypto.randomUUID(),
-              deltas,
-              createdAt: Date.now(),
-            },
-          ],
-          players: applyDeltas(state.players, deltas, 1),
-        })),
-      updateLastRound: (deltas) =>
-        set((state) => {
-          if (!state.rounds.length) {
-            return state
-          }
+        })
+      },
+      addRound: (deltas) => {
+        const state = get()
+        if (state.roomCode && !state.isHost) return
 
-          const lastRound = state.rounds[state.rounds.length - 1]
-          const revertedPlayers = applyDeltas(state.players, lastRound.deltas, -1)
-          const updatedPlayers = applyDeltas(revertedPlayers, deltas, 1)
+        const rounds = [
+          ...state.rounds,
+          {
+            id: crypto.randomUUID(),
+            deltas,
+            createdAt: Date.now(),
+          },
+        ]
+        const players = applyDeltas(state.players, deltas, 1)
+        set({ rounds, players })
+        if (state.roomCode) {
+          writeRoomStateSafely(state.roomCode, { players, rounds })
+        }
+      },
+      updateLastRound: (deltas) => {
+        const state = get()
+        if (state.roomCode && !state.isHost) return
+        if (!state.rounds.length) {
+          return
+        }
 
-          return {
-            players: updatedPlayers,
-            rounds: [
-              ...state.rounds.slice(0, -1),
-              {
-                ...lastRound,
-                deltas,
-              },
-            ],
-          }
-        }),
-      deleteLastRound: () =>
-        set((state) => {
-          if (!state.rounds.length) {
-            return state
-          }
+        const lastRound = state.rounds[state.rounds.length - 1]
+        const revertedPlayers = applyDeltas(state.players, lastRound.deltas, -1)
+        const players = applyDeltas(revertedPlayers, deltas, 1)
+        const rounds = [
+          ...state.rounds.slice(0, -1),
+          {
+            ...lastRound,
+            deltas,
+          },
+        ]
 
-          const lastRound = state.rounds[state.rounds.length - 1]
+        set({ players, rounds })
+        if (state.roomCode) {
+          writeRoomStateSafely(state.roomCode, { players, rounds })
+        }
+      },
+      deleteLastRound: () => {
+        const state = get()
+        if (state.roomCode && !state.isHost) return
+        if (!state.rounds.length) {
+          return
+        }
 
-          return {
-            rounds: state.rounds.slice(0, -1),
-            players: applyDeltas(state.players, lastRound.deltas, -1),
-          }
-        }),
-      resetGame: () =>
+        const lastRound = state.rounds[state.rounds.length - 1]
+        const rounds = state.rounds.slice(0, -1)
+        const players = applyDeltas(state.players, lastRound.deltas, -1)
+
+        set({ rounds, players })
+        if (state.roomCode) {
+          writeRoomStateSafely(state.roomCode, { players, rounds })
+        }
+      },
+      resetGame: () => {
+        const state = get()
+        if (state.roomCode && !state.isHost) return
+
         set({
           gameStarted: false,
           startingScore: 0,
           players: [],
           rounds: [],
-        }),
-    }),
+          roomCode: null,
+          isHost: false,
+          syncStatus: 'idle',
+        })
+      },
+      leaveRoom: () => {
+        set({
+          gameStarted: false,
+          startingScore: 0,
+          players: [],
+          rounds: [],
+          roomCode: null,
+          isHost: false,
+          syncStatus: 'idle',
+        })
+      },
+      createRoom: async () => {
+        const state = get()
+        const roomCode = await createRoomInFirestore(
+          {
+            gameStarted: state.gameStarted,
+            startingScore: state.startingScore,
+            players: state.players,
+            rounds: state.rounds,
+          },
+          state.deviceId,
+        )
+        set({ roomCode, isHost: true, syncStatus: 'connected' })
+        return roomCode
+      },
+      joinRoom: async (roomCode) => {
+        set({ syncStatus: 'connecting' })
+        const room = await joinRoomInFirestore(roomCode)
+        if (!room) {
+          set({ syncStatus: 'error' })
+          return false
+        }
+
+        set({
+          roomCode: room.roomCode,
+          isHost: room.hostDeviceId === get().deviceId,
+          gameStarted: room.gameStarted,
+          startingScore: room.startingScore,
+          players: room.players,
+          rounds: room.rounds,
+          syncStatus: 'connected',
+        })
+        return true
+      },
+      applyRemoteState: (room) => {
+        if (!room) {
+          set({ syncStatus: 'error' })
+          return
+        }
+
+        set({
+          roomCode: room.roomCode,
+          isHost: room.hostDeviceId === get().deviceId,
+          gameStarted: room.gameStarted,
+          startingScore: room.startingScore,
+          players: room.players,
+          rounds: room.rounds,
+          syncStatus: 'connected',
+        })
+      },
+      }
+    },
     {
       name: 'scorekeeper-game-state',
       storage: createJSONStorage(() => localStorage),
@@ -116,6 +223,7 @@ export const useGameStore = create<GameState>()(
         startingScore: state.startingScore,
         players: state.players,
         rounds: state.rounds,
+        roomCode: state.roomCode,
       }),
     },
   ),

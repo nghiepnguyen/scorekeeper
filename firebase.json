@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "database": "scorekeeper-db",
+    "rules": "firestore.rules"
+  }
+}

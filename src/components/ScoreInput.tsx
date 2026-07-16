@@ -2,12 +2,17 @@ import type { FormEvent } from 'react'
 import type { CopyStrings } from '../lib/copy'
 import type { Player } from '../types'
 
+type SyncStatus = 'idle' | 'connecting' | 'connected' | 'error'
+
 type ScoreInputProps = {
   t: CopyStrings
   players: Player[]
   roundInputs: Record<string, string>
   roundCount: number
   winnerNotice: string
+  roomCode: string | null
+  syncStatus: SyncStatus
+  roomLinkStatus: string
   onRoundInputChange: (playerId: string, value: string) => void
   onRoundInputFocus: (playerId: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -15,6 +20,8 @@ type ScoreInputProps = {
   onEndGame: () => void
   onDeleteLastRound: () => void
   onResetGame: () => void
+  onCreateRoom: () => void
+  onCopyRoomLink: () => void
 }
 
 export function ScoreInput({
@@ -23,6 +30,9 @@ export function ScoreInput({
   roundInputs,
   roundCount,
   winnerNotice,
+  roomCode,
+  syncStatus,
+  roomLinkStatus,
   onRoundInputChange,
   onRoundInputFocus,
   onSubmit,
@@ -30,6 +40,8 @@ export function ScoreInput({
   onEndGame,
   onDeleteLastRound,
   onResetGame,
+  onCreateRoom,
+  onCopyRoomLink,
 }: ScoreInputProps) {
   return (
     <article className="panel">
@@ -39,6 +51,34 @@ export function ScoreInput({
         <button type="button" className="button ghost" onClick={onResetGame}>
           {t.newRoom}
         </button>
+      </div>
+
+      <div className="room-bar">
+        <div className="room-bar-info">
+          {roomCode ? (
+            <span className="room-status">
+              <span
+                className={`room-status-dot${syncStatus === 'error' ? ' is-error' : ''}`}
+                aria-hidden="true"
+              />
+              {t.liveSyncLabel}
+              <span className="room-code-pill">{roomCode}</span>
+            </span>
+          ) : null}
+          {syncStatus === 'error' ? <span className="sync-error-banner">{t.syncErrorNotice}</span> : null}
+        </div>
+        <div className="room-bar-actions">
+          {roomCode ? (
+            <button type="button" className="button ghost" onClick={onCopyRoomLink}>
+              {t.copyRoomLink}
+            </button>
+          ) : (
+            <button type="button" className="button ghost" onClick={onCreateRoom}>
+              {t.createSyncRoom}
+            </button>
+          )}
+          {roomLinkStatus ? <span className="subtle">{roomLinkStatus}</span> : null}
+        </div>
       </div>
 
       <form onSubmit={onSubmit} className="stack">

@@ -13,6 +13,7 @@ type SummaryProps = {
   showConfetti: boolean
   shareText: string
   copyStatus: string
+  readOnly: boolean
   onBackToMatch: () => void
   onResetGame: () => void
   onCopyResult: () => void
@@ -28,6 +29,7 @@ export function Summary({
   showConfetti,
   shareText,
   copyStatus,
+  readOnly,
   onBackToMatch,
   onResetGame,
   onCopyResult,
@@ -57,7 +59,7 @@ export function Summary({
         <button type="button" className="button secondary" onClick={onBackToMatch}>
           {t.backToMatch}
         </button>
-        <button type="button" className="button primary" onClick={onResetGame}>
+        <button type="button" className="button primary" onClick={onResetGame} disabled={readOnly}>
           {t.newRoom}
         </button>
       </div>

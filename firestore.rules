@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidRoom(data, roomCode) {
+      return data.keys().hasOnly([
+          'roomCode', 'hostDeviceId', 'gameStarted', 'startingScore',
+          'players', 'rounds', 'allowGuestScoring', 'createdAt', 'updatedAt'
+        ])
+        && data.roomCode is string && data.roomCode == roomCode
+        && data.hostDeviceId is string
+        && data.gameStarted is bool
+        && data.startingScore is number
+        && data.players is list && data.players.size() <= 32
+        && data.rounds is list && data.rounds.size() <= 3000
+        && data.allowGuestScoring is bool
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    match /rooms/{roomCode} {
+      // No Firebase Auth in this app (see DEVELOPMENT.md "Giới hạn bảo mật") —
+      // read/write stay open by room code, this only enforces document shape
+      // and blocks unbounded/garbage writes, not who is allowed to write.
+      allow read: if true;
+
+      allow create: if isValidRoom(request.resource.data, roomCode);
+
+      allow update: if isValidRoom(request.resource.data, roomCode)
+        && request.resource.data.hostDeviceId == resource.data.hostDeviceId
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
